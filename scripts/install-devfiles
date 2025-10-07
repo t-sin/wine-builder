@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+declare -a deps_dev_files=(
+  libasound2-dev
+  libdbus-1-dev
+  libfontconfig-dev
+  libgl-dev
+  libgnutls28-dev
+  libgstreamer1.0-dev
+  libgstreamer1.0-dev
+  libgstreamer-plugins-base1.0-dev
+  libkrb5-dev
+  libosmesa6-dev
+  libpcap-dev
+  libpulse-dev
+  libsane-dev
+  libsdl2-dev
+  libudev-dev
+  libunwind-dev
+  libusb-dev
+  libusb-1.0-0-dev
+  libv4l-dev
+  libvulkan-dev
+  libwayland-dev
+  libx11-dev
+  libxcomposite-dev
+  libxcursor-dev
+  libxext-dev
+  libxfixes-dev
+  libxi-dev
+  libxinerama-dev
+  libxkbcommon-dev
+  libxrandr-dev
+  libxrender-dev
+  samba-dev
+)
+declare -a deps_amd64_dev_files=(
+  libegl-dev
+  libfreetype-dev
+  libxkbregistry-dev
+)
+declare -a deps_i386_dev_files=(
+  libegl1-mesa-dev
+  libfreetype6-dev
+#  libxkbregistry-dev
+)
+
+apt_install_dev_files() {
+  if [[ "$BASE_IMAGE" =~ i386 ]]; then
+    apt install "${deps_dev_files[@]}" "${deps_i386_dev_files[@]}" -y
+  else
+    apt install "${deps_dev_files[@]}" "${deps_amd64_dev_files[@]}" -y
+  fi
+}
+
+apt_install_dev_files

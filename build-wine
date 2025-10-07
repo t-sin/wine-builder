@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# a wine builder script.
+# this script builts specific version of wine in a docker container.
+# this script needs these commands: docker, git and jq
+#
+# refs:
+# - https://gitlab.winehq.org/wine/wine/-/wikis/Building-Wine#shared-wow64
+# - https://gitlab.winehq.org/wine/wine/-/wikis/Building-Biarch-Wine-On-Ubuntu
+
+set -eu -o pipefail
+
+here=$(dirname $(readlink -f "$0"))
+
+usage() {
+  echo 'Usage: build-wine VERSION PREFIX'
+  echo
+  echo 'Build a specific version of wine and install it'
+  echo
+  echo 'The VERSION will be used to determine a tag to clone git repository. Tags are'
+  echo 'tyipically named like `wine-<version>`'
+  echo
+  echo 'PREFIX is a directory name will contain wine directory built. It is a directory,'
+  echo 'named like `wine_VERSION`, including all files built will be placed at `PREFIX`.'
+  echo 'So the WINELOADER should be set like `PREFIX/wine_VERSION/bin/wine`'
+  echo
+  echo
+  exit 1
+}
+
+if [ $# -ne 2 ]; then
+  usage
+fi
+
+wine_version="$1"
+prefix="$2"
+install_path="${prefix}/wine_${wine_version}"
+
+tmpdir=
+
+prerequisties() {
+  if [ -z "${wine_version}" ]; then
+    echo 'ERROR: WINE_VERSION cannot be empty.'
+    echo
+    usage
+  fi
+
+  if [ -z "${prefix}" ]; then
+    echo 'ERROR: PREFIX cannot be empty.'
+    echo
+    usage
+  fi
+
+  if [ -e "${install_path}" ]; then
+    echo "ERROR: wine ${wine_version} is already installed at:"
+    echo "   ${install_path}"
+    echo
+    usage
+  fi
+}
+
+setup() {
+  tmpdir=$(mktemp -t --directory --tmpdir=/tmp "wine-builder_${wine_version}.XXXX")
+  cp "${here}/scripts"/* "${tmpdir}/"
+}
+
+teardown() {
+  rm -rf "${tmpdir}"
+}
+
+main() {
+  echo
+  echo 'building wine with those parameters:'
+  echo "   wine_version = $wine_version"
+  echo "   prefix       = $prefix"
+  echo "   install_path = $install_path"
+  echo "   tmpdir       = ${tmpdir}"
+  echo
+
+  "${here}/steps/01-build-base-images.bash"    "$here"  "$tmpdir"                   "$wine_version"
+  "${here}/steps/02-build-wine64.bash"         "$here"  "$tmpdir"  "$install_path"  "$wine_version"
+  "${here}/steps/03-build-wine32-tools.bash"   "$here"  "$tmpdir"                   "$wine_version"
+  "${here}/steps/04-build-wine32.bash"         "$here"  "$tmpdir"  "$install_path"  "$wine_version"
+  "${here}/steps/05-install-wine.bash"         "$here"  "$tmpdir"  "$prefix"        "$wine_version"
+}
+
+prerequisties
+setup
+main
+teardown

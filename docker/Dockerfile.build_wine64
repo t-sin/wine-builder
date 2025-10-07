@@ -1,0 +1,16 @@
+ARG BASE_IMAGE=ubuntu:24.04
+ARG MAKE_MAX_JOBS=4
+
+FROM $BASE_IMAGE
+SHELL ["/bin/bash", "-c"]
+WORKDIR /build_wine/wine64
+
+ARG PREFIX
+RUN /build_wine/wine.src/configure \
+    --enable-win64 \
+    --prefix=${PREFIX}
+
+ARG MAKE_MAX_JOBS
+RUN make -j ${MAKE_MAX_JOBS}
+
+RUN make install
