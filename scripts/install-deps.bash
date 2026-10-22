@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 if [ $# -ne 1 ]; then
-  echo "usage: $0 DEPS_LIST"
+  echo "usage: $(basename ""$0"") DEPS_LIST"
   echo
   echo 'Install dependent packages.'
   echo 'Currently supports only apt'

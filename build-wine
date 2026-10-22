@@ -6,12 +6,16 @@
 # refs:
 # - https://gitlab.winehq.org/wine/wine/-/wikis/Building-Wine#shared-wow64
 # - https://gitlab.winehq.org/wine/wine/-/wikis/Building-Biarch-Wine-On-Ubuntu
-
 set -eu -o pipefail
+
+export WINE_REPO_BASE_URL=https://gitlab.winehq.org/wine
+export WINE_REPO_NAME=wine
+export WINE_STAGING_REPO_NAME=wine-staging
 
 here=$(dirname $(readlink -f "$0"))
 
 usage() {
+
   echo 'Usage: build-wine VERSION PREFIX'
   echo
   echo 'Build a specific version of wine and install it'
@@ -19,20 +23,42 @@ usage() {
   echo 'The VERSION will be used to determine a tag to clone git repository. Tags are'
   echo 'tyipically named like `wine-<version>`'
   echo
-  echo 'PREFIX is a directory name will contain wine directory built. It is a directory,'
-  echo 'named like `wine_VERSION`, including all files built will be placed at `PREFIX`.'
-  echo 'So the WINELOADER should be set like `PREFIX/wine_VERSION/bin/wine`'
+  echo 'PREFIX is a directory to installed all of build results.'
+  echo 'If you run this script like `build-wine 10.0 /path/to/mywine`, a binary `wine` is'
+  echo 'placed at `/path/to/mywine/bin/wine`.'
+  echo 'So the WINELOADER for this should be set like `PREFIX/bin/wine`'
   echo
+  echo 'OPTIONS'
+  echo '   -s, --staging          Build a staging version instead of normal wine source tree.'
   echo
   exit 1
 }
 
-if [ $# -ne 2 ]; then
-  usage
-fi
+build_staging=no
+new_wow64_build=no
 
-wine_version="$1"
-prefix="$2"
+opts=$(getopt -o s -l staging -n build-wine -- "$@")
+eval set -- "$opts"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -s|--staging)
+      build_staging=yes
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo 'broken argv...?'
+      echo "argv = $@"
+      usage
+  esac
+done
+
+wine_version=${1:-}
+prefix=$(realpath "${2:-}")
 install_path="${prefix}/wine_${wine_version}"
 
 tmpdir=
@@ -59,31 +85,40 @@ prerequisties() {
 }
 
 setup() {
-  tmpdir=$(mktemp -t --directory --tmpdir=/tmp "wine-builder_${wine_version}.XXXX")
-  cp "${here}/scripts"/* "${tmpdir}/"
+  tmpdir=$(mktemp -t --directory --tmpdir=/tmp "wine-builder_${wine_version}_XXXXX")
 }
 
-teardown() {
+cleanup() {
+  echo "deleting ${tmpdir}..."
   rm -rf "${tmpdir}"
 }
+#trap cleanup SIGINT
 
 main() {
+  if [ "$(echo ""$wine_version"" | cut -d'.' -f1)" -ge 11 ]; then
+    new_wow64_build=yes
+  fi
+
   echo
   echo 'building wine with those parameters:'
-  echo "   wine_version = $wine_version"
-  echo "   prefix       = $prefix"
-  echo "   install_path = $install_path"
-  echo "   tmpdir       = ${tmpdir}"
+  echo "   wine_version    = $wine_version"
+  echo "   build_staging   = $build_staging"
+  echo "   new_wow64_build = $new_wow64_build"
+  echo
+  echo "   prefix          = $prefix"
+  echo "   install_path    = $install_path"
+  echo
+  echo "   tmpdir          = $tmpdir"
   echo
 
-  "${here}/steps/01-build-base-images.bash"    "$here"  "$tmpdir"                   "$wine_version"
-  "${here}/steps/02-build-wine64.bash"         "$here"  "$tmpdir"  "$install_path"  "$wine_version"
-  "${here}/steps/03-build-wine32-tools.bash"   "$here"  "$tmpdir"                   "$wine_version"
-  "${here}/steps/04-build-wine32.bash"         "$here"  "$tmpdir"  "$install_path"  "$wine_version"
-  "${here}/steps/05-install-wine.bash"         "$here"  "$tmpdir"  "$prefix"        "$wine_version"
+  if [ "$build_staging" = yes ]; then
+    "${here}/scripts/setup-wine-staging-source.bash"  "$tmpdir" "$wine_version"
+  else
+    "${here}/scripts/setup-wine-source.bash"          "$tmpdir" "$wine_version"
+  fi
 }
 
 prerequisties
 setup
 main
-teardown
+#cleanup
