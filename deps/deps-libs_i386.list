@@ -1,0 +1,5 @@
+# tested on:
+# - i386/ubuntu:latest
+#
+libegl1-mesa-dev
+libfreetype6-dev
