@@ -34,6 +34,8 @@ git -C "${workdir}/${WINE_REPO_NAME}.src" \
 git -C "${workdir}/${WINE_REPO_NAME}.src" \
   fetch --depth 1 origin "$wine_upstream" \
   > "${workdir}/git-clone.log" 2>&1
+git -C "${workdir}/${WINE_REPO_NAME}.src" \
+  switch -d FETCH_HEAD > "${workdir}/git-clone.log" 2>&1
 
 echo "applying all patches in wine-staging (${wine_upstream})..."
 "${workdir}/${WINE_STAGING_REPO_NAME}.src/staging/patchinstall.py" \
