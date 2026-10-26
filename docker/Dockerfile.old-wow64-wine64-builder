@@ -1,0 +1,37 @@
+ARG base_image=ubuntu:26.04
+ARG prefix
+ARG make_max_jobs=2
+
+FROM $base_image AS src
+SHELL ["/bin/bash", "-c"]
+WORKDIR /build-wine
+
+RUN --mount=type=bind,from=source,src=/wine.src,dst=/wine.src \
+    cp -r /wine.src /build-wine/wine.src
+
+FROM src AS deps
+WORKDIR /build-wine
+
+RUN apt update && apt upgrade -y
+
+COPY scripts/install-deps.bash .
+COPY deps/ ./
+RUN ./install-deps.bash ./deps-tools.list
+RUN ./install-deps.bash ./deps-libs.list
+RUN ./install-deps.bash ./deps-libs_amd64.list
+
+FROM deps AS config
+WORKDIR /build-wine/wine64
+
+ARG prefix
+RUN /build-wine/wine.src/configure \
+    --enable-win64 \
+    --disable-tests \
+    --prefix=${prefix}
+
+FROM config AS builder
+WORKDIR /build-wine/wine64
+
+ARG make_max_jobs
+RUN make -j ${make_max_jobs}
+#RUN make install
