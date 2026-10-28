@@ -2,7 +2,6 @@
 # - ubuntu:26.04
 # - i386/ubuntu:latest
 #
-build-essential
 gcc-multilib
 gcc-mingw-w64
 flex
