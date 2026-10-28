@@ -36,7 +36,8 @@ usage() {
   echo 'So the WINELOADER for this should be set like `PREFIX/bin/wine`'
   echo
   echo 'OPTIONS'
-  echo '   -s, --staging          Build a staging version instead of normal wine source tree.'
+  echo '   -s, --staging                  Build a staging version instead of normal wine source tree.'
+  echo '   -d, --source-directory=PATH    Use sources placed on PATH insted of cloning sources.'
   echo
   exit 1
 }
@@ -44,6 +45,10 @@ usage() {
 build_staging=no
 new_wow64_build=no
 source_dir=
+
+if [ $# -lt 2 ]; then
+  usage
+fi
 
 opts=$(getopt -o sd: -l staging -n build-wine -- "$@")
 echo opts = "$opts"
@@ -76,21 +81,6 @@ prefix=$(realpath "${2:-}")
 
 tmpdir=
 
-print_params() {
-  echo 'parameters:'
-  echo "      wine_version = $wine_version"
-  echo "     build_staging = $build_staging"
-  echo "   new_wow64_build = $new_wow64_build"
-  echo
-  echo "    install prefix = $prefix"
-  echo "    work directory = $tmpdir"
-  echo "  source directory = $source_dir"
-  echo
-  echo "  used image (x86) = $DOCKER_BASE_IMAGE32"
-  echo "  used image (x64) = $DOCKER_BASE_IMAGE64"
-  echo
-}
-
 prerequisties() {
   if [ -z "${wine_version}" ]; then
     echo 'ERROR: WINE_VERSION cannot be empty.'
@@ -122,37 +112,56 @@ cleanup() {
 }
 #trap cleanup SIGINT
 
+print_params() {
+  echo 'parameters:'
+  echo "      wine_version = $wine_version"
+  echo "     build_staging = $build_staging"
+  echo "   new_wow64_build = $new_wow64_build"
+  echo
+  echo "    install prefix = $prefix"
+  echo "    work directory = $tmpdir"
+  echo "  source directory = $source_dir"
+  echo
+  echo "  used image (x86) = $DOCKER_BASE_IMAGE32"
+  echo "  used image (x64) = $DOCKER_BASE_IMAGE64"
+  echo
+}
+
+run_with_log() {
+  "$@" | tee "${tmpdir}/build.log"
+}
+
 main() {
   if [ "$(echo ""$wine_version"" | cut -d'.' -f1)" -ge 11 ]; then
     new_wow64_build=yes
   fi
 
   echo 'building wine...'
-  print_params
+  run_with_log print_params
 
   if [ -z "$source_dir" ]; then
     if [ "$build_staging" = yes ]; then
-      "${here}/scripts/setup-wine-staging-source.bash"  "$tmpdir" "$wine_version"
+      run_with_log "${here}/scripts/setup-wine-staging-source.bash"  "$tmpdir" "$wine_version"
     else
-      "${here}/scripts/setup-wine-source.bash"          "$tmpdir" "$wine_version"
+      run_with_log "${here}/scripts/setup-wine-source.bash"          "$tmpdir" "$wine_version"
     fi
   else
     if [ ! -d "$source_dir" ]; then
-      echo "source dir is not a directory: $source_dir"
+      run_with_log echo "source dir is not a directory: $source_dir"
       usage
     elif [ ! -d "${source_dir}/wine.src" ]; then
-      echo "source dir has no wine.src directory: $source_dir"
+      run_with_log echo "source dir has no wine.src directory: $source_dir"
       usage
     fi
 
-    echo "copying existing source in ${source_dir}..."
+    run_with_log echo "copying existing source in ${source_dir}..."
     cp -r "${source_dir}/wine.src" "$tmpdir/"
   fi
 
   if [ "$new_wow64_build" = yes ]; then
-    "${here}/scripts/build-wine_new-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
+    run_with_log "${here}/scripts/build-wine_new-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
   else
-    "${here}/scripts/build-wine_old-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
+    run_with_log "${here}/scripts/build-wine_old-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
   fi
 }
 
