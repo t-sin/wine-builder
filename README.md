@@ -39,7 +39,7 @@ Tested on:
     - [x] wine-staging 11.0
 - Old wow64 build
     - [x] wine 10.2
-    - [ ] wine-staging 9.21 ... doing
+    - [ ] wine-staging 9.21 ... failed. gccのバージョン下げないとかも.エラーハンドリングもダメ.
 
 ## Requirements
 
