@@ -57,12 +57,7 @@ fi
 
 image_tag=wine-builder_${wine_version}_new-wow64
 
-(docker image ls --format "{{.Repository}}" | grep -x "${image_tag}" > /dev/null); image_found=$?
-if [ $image_found -ne 0 ]; then
-  echo 'remove already existed image'
-  docker rmi "${image_tag}"
-fi
-
+echo
 echo 'building wine (new wow64 build)...'
 dockerfile=docker/Dockerfile.new-wow64-builder
 declare -a build_args=(
@@ -77,14 +72,23 @@ declare -a build_args=(
     .
 )
 echo docker build "${build_args[@]}"
-docker build "${build_args[@]}"
-
+docker build "${build_args[@]}" > "${workdir}/docker-build_new-wow64.log" 2>&1
+if [ $? -ne 0 ]; then
+  echo "faild to build the image ${image_tag}."
+  exit 1
+fi
+echo
 echo 'successfully built wine (new wow64 build).'
 
+echo
 echo "copying wine files into ${prefix}..."
-container_id=$(docker create "$image_tag")
-docker cp "${container_id}:${prefix}/" "$prefix/"
-docker rm "${container_id}"
+container_id=$(docker create "$image_tag") && \
+  docker cp "${container_id}:${prefix}/" "$prefix/" && \
+  docker rm "${container_id}"
+if [ $? -ne 0 ]; then
+  echo "faild to copy wine files (new wow64 build) from the image ${image_tag}."
+  exit 1
+fi
 
 echo "successfully installed wine (${wine_version}, new wow64 build) at:"
 echo "  ${prefix}"
