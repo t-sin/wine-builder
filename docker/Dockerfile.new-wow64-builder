@@ -16,7 +16,6 @@ RUN apt update && apt upgrade -y
 
 COPY scripts/install-deps.bash .
 COPY deps/ ./
-RUN ./install-deps.bash ./deps-build-essential.list
 RUN ./install-deps.bash ./deps-tools.list
 RUN ./install-deps.bash ./deps-libs.list
 RUN ./install-deps.bash ./deps-libs_amd64.list
