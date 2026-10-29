@@ -6,6 +6,7 @@ SHELL ["/bin/bash", "-c"]
 
 WORKDIR /build-wine/wine32-tools
 RUN /build-wine/wine.src/configure \
+    CFLAGS=-std=gnu11 \
     --disable-tests
 
 ARG make_max_jobs

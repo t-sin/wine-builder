@@ -25,6 +25,7 @@ WORKDIR /build-wine/wine64
 
 ARG prefix
 RUN /build-wine/wine.src/configure \
+    CFLAGS=-std=gnu17 \
     --enable-win64 \
     --disable-tests \
     --prefix=${prefix}
