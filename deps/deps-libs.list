@@ -1,0 +1,36 @@
+# tested on:
+# - ubuntu:26.04
+# - i386/ubuntu:latest
+#
+libasound2-dev
+libdbus-1-dev
+libfontconfig-dev
+libgl-dev
+libgnutls28-dev
+libgstreamer1.0-dev
+libgstreamer1.0-dev
+libgstreamer-plugins-base1.0-dev
+libkrb5-dev
+libosmesa6-dev
+libpcap-dev
+libpulse-dev
+libsane-dev
+libsdl2-dev
+libudev-dev
+libunwind-dev
+libusb-1.0-0-dev
+libusb-dev
+libv4l-dev
+libvulkan-dev
+libwayland-dev
+libx11-dev
+libxcomposite-dev
+libxcursor-dev
+libxext-dev
+libxfixes-dev
+libxi-dev
+libxinerama-dev
+libxkbcommon-dev
+libxrandr-dev
+libxrender-dev
+samba-dev

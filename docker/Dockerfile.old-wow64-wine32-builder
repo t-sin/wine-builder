@@ -1,0 +1,24 @@
+ARG wine_version
+ARG prefix
+ARG make_max_jobs=2
+
+FROM wine-builder_${wine_version}_old-wow64_wine32-base
+SHELL ["/bin/bash", "-c"]
+
+RUN --mount=type=bind,src=./wine64,dst=/wine64 \
+    cp -r /wine64 /build-wine/wine64
+RUN --mount=type=bind,src=./wine32-tools,dst=/wine32-tools \
+    cp -r /wine32-tools /build-wine/wine32-tools
+
+WORKDIR /build-wine/wine32
+ARG prefix
+RUN /build-wine/wine.src/configure \
+    CFLAGS=-std=gnu11 \
+    --disable-tests \
+    --with-wine64=../wine64 \
+    --with-wine-tools=../wine32-tools \
+    --prefix=${prefix}
+
+ARG make_max_jobs
+RUN make -j ${make_max_jobs}
+RUN make install

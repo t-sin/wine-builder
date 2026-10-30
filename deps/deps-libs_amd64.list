@@ -1,0 +1,6 @@
+# tested on:
+# - ubuntu:26.04
+#
+libegl-dev
+libfreetype-dev
+libxkbregistry-dev
