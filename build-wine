@@ -6,7 +6,7 @@
 # refs:
 # - https://gitlab.winehq.org/wine/wine/-/wikis/Building-Wine#shared-wow64
 # - https://gitlab.winehq.org/wine/wine/-/wikis/Building-Biarch-Wine-On-Ubuntu
-set -eu -o pipefail
+#set -eu -o pipefail
 
 export WINE_REPO_BASE_URL=https://gitlab.winehq.org/wine
 export WINE_REPO_NAME=wine
@@ -113,7 +113,7 @@ cleanup() {
 #trap cleanup SIGINT
 
 print_params() {
-  echo 'parameters:'
+  echo 'build parameters:'
   echo "      wine_version = $wine_version"
   echo "     build_staging = $build_staging"
   echo "   new_wow64_build = $new_wow64_build"
@@ -165,5 +165,13 @@ main() {
   fi
 }
 
-(prerequisties && setup && main) || print_params
+prerequisties && setup && main
+if [ $? -ne 0 ]; then
+  echo
+  echo "failed to build wine ${wine_version}."
+  echo "check the temp directory to see details."
+  echo
+  print_params
+fi
+
 cleanup
