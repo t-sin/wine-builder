@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #set -eu -o pipefail
 
+script_root=$(dirname "$(realpath ""${BASH_SOURCE[0]:-$0}/../"")")
+
 if [ $# -ne 3 ]; then
   echo "usage: $(basename ""$0"") WORK_DIR WINE_VERSION PREFIX"
   echo
@@ -59,17 +61,17 @@ image_tag=wine-builder_${wine_version}_new-wow64
 
 echo
 echo 'building wine (new wow64 build)...'
-dockerfile=docker/Dockerfile.new-wow64-builder
+dockerfile=${script_root}/docker/Dockerfile.new-wow64-builder
 declare -a build_args=(
     --progress "$docker_progress"
     -f "$dockerfile"
     --tag "$image_tag"
     --platform "$DOCKER_PLATFORM_WINE64"
-    --build-context source="$workdir"
+    --build-context source="${workdir}"
     --build-arg base_image="$DOCKER_BASE_IMAGE64"
     --build-arg prefix="$prefix"
     --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    .
+    "${script_root}"
 )
 echo docker build "${build_args[@]}"
 docker build "${build_args[@]}" > "${workdir}/docker-build_new-wow64.log" 2>&1

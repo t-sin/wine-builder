@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #set -eu -o pipefail
 
+script_root=$(dirname "$(realpath ""${BASH_SOURCE[0]:-$0}/../"")")
+
 if [ $# -ne 3 ]; then
   echo "usage: $(basename ""$0"") WORK_DIR WINE_VERSION PREFIX"
   echo
@@ -56,7 +58,7 @@ image_tag_base=wine-builder_${wine_version}_old-wow64
 image_tag_wine64=${image_tag_base}_wine64-builder
 echo
 echo 'building wine64 (old wow64 build)...'
-dockerfile=docker/Dockerfile.old-wow64-wine64-builder
+dockerfile=${script_root}/docker/Dockerfile.old-wow64-wine64-builder
 declare -a build_args=(
     --progress "$docker_progress"
     -f "$dockerfile"
@@ -66,7 +68,7 @@ declare -a build_args=(
     --build-arg base_image="$DOCKER_BASE_IMAGE64"
     --build-arg prefix="$prefix"
     --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    .
+    "${script_root}"
 )
 echo docker build "${build_args[@]}"
 docker build "${build_args[@]}" > "${workdir}/docker-build-wine64.log" 2>&1
@@ -82,7 +84,7 @@ echo 'successfully built wine64 (old wow64 build).'
 image_tag_wine32_base=${image_tag_base}_wine32-base
 echo
 echo 'building wine32-base (old wow64 build)...'
-dockerfile=docker/Dockerfile.old-wow64-wine32-base
+dockerfile=${script_root}/docker/Dockerfile.old-wow64-wine32-base
 declare -a build_args=(
     --progress "$docker_progress"
     -f "$dockerfile"
@@ -91,7 +93,7 @@ declare -a build_args=(
     --build-context source="$workdir"
     --build-arg base_image="$DOCKER_BASE_IMAGE32"
     --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    .
+    "${script_root}"
 )
 echo docker build "${build_args[@]}"
 docker build "${build_args[@]}" > "${workdir}/docker-build-wine32-base.log" 2>&1
@@ -107,16 +109,15 @@ echo 'successfully built wine32-base (old wow64 build).'
 image_tag_wine32_tools=${image_tag_base}_wine32-tools
 echo
 echo 'building wine32-tools (old wow64 build)...'
-dockerfile=docker/Dockerfile.old-wow64-wine32-tools
+dockerfile=${script_root}/docker/Dockerfile.old-wow64-wine32-tools
 declare -a build_args=(
     --progress "$docker_progress"
     -f "$dockerfile"
     --tag "$image_tag_wine32_tools"
     --platform "$DOCKER_PLATFORM_WINE32"
-    --build-context source="$workdir"
     --build-arg wine_version="$wine_version"
     --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    "${workdir}"
+    "${script_root}"
 )
 echo docker build "${build_args[@]}"
 docker build "${build_args[@]}" > "${workdir}/docker-build-wine32-tools.log" 2>&1
@@ -152,17 +153,16 @@ fi
 
 echo
 echo 'building wine32 (old wow64 build)...'
-dockerfile=docker/Dockerfile.old-wow64-wine32-builder
+dockerfile=${script_root}/docker/Dockerfile.old-wow64-wine32-builder
 declare -a build_args=(
     --progress "$docker_progress"
     -f "$dockerfile"
     --tag "$image_tag_wine32"
     --platform "$DOCKER_PLATFORM_WINE32"
-    --build-context source="$workdir"
     --build-arg wine_version="$wine_version"
     --build-arg prefix="$prefix"
     --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    "${workdir}"
+    "$workdir"
 )
 echo docker build "${build_args[@]}"
 docker build "${build_args[@]}" > "${workdir}/docker-build-wine32.log" 2>&1
