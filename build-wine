@@ -127,8 +127,18 @@ print_params() {
   echo
 }
 
-run_with_log() {
+run_command() {
   "$@" | tee "${tmpdir}/build.log"
+  if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo
+    echo "command faild: $@"
+    echo
+    echo "failed to build wine ${wine_version}."
+    echo "check the temp directory to see details."
+    echo
+    print_params
+    exit 1
+  fi
 }
 
 main() {
@@ -137,41 +147,35 @@ main() {
   fi
 
   echo 'building wine...'
-  run_with_log print_params
+  run_command print_params
 
   if [ -z "$source_dir" ]; then
     if [ "$build_staging" = yes ]; then
-      run_with_log "${here}/scripts/setup-wine-staging-source.bash"  "$tmpdir" "$wine_version"
+      run_command "${here}/scripts/setup-wine-staging-source.bash"  "$tmpdir" "$wine_version"
     else
-      run_with_log "${here}/scripts/setup-wine-source.bash"          "$tmpdir" "$wine_version"
+      run_command "${here}/scripts/setup-wine-source.bash"          "$tmpdir" "$wine_version"
     fi
   else
     if [ ! -d "$source_dir" ]; then
-      run_with_log echo "source dir is not a directory: $source_dir"
+      run_command echo "source dir is not a directory: $source_dir"
       usage
     elif [ ! -d "${source_dir}/wine.src" ]; then
-      run_with_log echo "source dir has no wine.src directory: $source_dir"
+      run_command echo "source dir has no wine.src directory: $source_dir"
       usage
     fi
 
-    run_with_log echo "copying existing source in ${source_dir}..."
+    run_command echo "copying existing source in ${source_dir}..."
     cp -r "${source_dir}/wine.src" "$tmpdir/"
   fi
 
   if [ "$new_wow64_build" = yes ]; then
-    run_with_log "${here}/scripts/build-wine_new-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
+    run_command "${here}/scripts/build-wine_new-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
   else
-    run_with_log "${here}/scripts/build-wine_old-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
+    run_command "${here}/scripts/build-wine_old-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
   fi
 }
 
-prerequisties && setup && main
-if [ $? -ne 0 ]; then
-  echo
-  echo "failed to build wine ${wine_version}."
-  echo "check the temp directory to see details."
-  echo
-  print_params
-fi
-
+prerequisties
+setup
+main
 cleanup
