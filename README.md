@@ -11,7 +11,7 @@ This repository has no license. All rights reserved by the author. This reposito
 To build [wine 11.0](https://gitlab.winehq.org/wine/wine/-/tags/wine-11.0) (a stable release of wine 11.x), run `build-wine` in this repo like this:
 
 ```
-./build-wine 11.0 /path/to/install/wine_11.0
+./build-wine -v 11.0 /path/to/install/wine_11.0
 ```
 
 ```
