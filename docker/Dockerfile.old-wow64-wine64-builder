@@ -35,4 +35,4 @@ WORKDIR /build-wine/wine64
 
 ARG make_max_jobs
 RUN make -j ${make_max_jobs}
-#RUN make install
+RUN make install

@@ -1,22 +1,47 @@
-ARG wine_version
-ARG prefix
+ARG base_image=ubuntu:26.04
 ARG make_max_jobs=2
+ARG prefix
 
-FROM wine-builder_${wine_version}_old-wow64_wine32-base
+FROM $base_image AS source
 SHELL ["/bin/bash", "-c"]
+WORKDIR /build-wine
 
-RUN --mount=type=bind,src=./wine64,dst=/wine64 \
+RUN --mount=type=bind,from=workdir,src=wine.src,dst=/wine.src \
+    cp -r /wine.src /build-wine/wine.src
+
+FROM source AS base
+WORKDIR /build-wine
+
+RUN apt update && apt upgrade -y
+
+COPY scripts/install-deps.bash .
+COPY deps/ ./
+RUN ./install-deps.bash ./deps-tools.list
+RUN ./install-deps.bash ./deps-libs.list
+RUN ./install-deps.bash ./deps-libs_i386.list
+
+FROM base AS tools
+
+WORKDIR /build-wine/wine32-tools
+RUN /build-wine/wine.src/configure \
+    CFLAGS=-std=gnu11 \
+    --disable-tests
+
+ARG make_max_jobs
+RUN make -j ${make_max_jobs}
+
+FROM tools AS builder
+
+RUN --mount=type=bind,from=workdir,src=wine64,dst=/wine64 \
     cp -r /wine64 /build-wine/wine64
-RUN --mount=type=bind,src=./wine32-tools,dst=/wine32-tools \
-    cp -r /wine32-tools /build-wine/wine32-tools
 
 WORKDIR /build-wine/wine32
 ARG prefix
 RUN /build-wine/wine.src/configure \
     CFLAGS=-std=gnu11 \
     --disable-tests \
-    --with-wine64=../wine64 \
-    --with-wine-tools=../wine32-tools \
+    --with-wine64=/build-wine/wine64 \
+    --with-wine-tools=/build-wine/wine32-tools \
     --prefix=${prefix}
 
 ARG make_max_jobs

@@ -55,6 +55,7 @@ fi
 
 image_tag_base=wine-builder_${wine_version}_old-wow64
 
+# wine64
 image_tag_wine64=${image_tag_base}_wine64-builder
 echo
 echo 'building wine64 (old wow64 build)...'
@@ -76,81 +77,21 @@ if [ $? -ne 0 ]; then
   echo "faild to build the image ${image_tag_wine64}."
   exit 1
 fi
-
 echo
 echo 'successfully built wine64 (old wow64 build).'
 
-# wine32-base
-image_tag_wine32_base=${image_tag_base}_wine32-base
-echo
-echo 'building wine32-base (old wow64 build)...'
-dockerfile=${script_root}/docker/Dockerfile.old-wow64-wine32-base
-declare -a build_args=(
-    --progress "$docker_progress"
-    -f "$dockerfile"
-    --tag "$image_tag_wine32_base"
-    --platform "$DOCKER_PLATFORM_WINE32"
-    --build-context source="$workdir"
-    --build-arg base_image="$DOCKER_BASE_IMAGE32"
-    --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    "${script_root}"
-)
-echo docker build "${build_args[@]}"
-docker build "${build_args[@]}" > "${workdir}/docker-build-wine32-base.log" 2>&1
-if [ $? -ne 0 ]; then
-  echo "faild to build the image ${image_tag_wine32_base}."
-  exit 1
-fi
-
-echo
-echo 'successfully built wine32-base (old wow64 build).'
-
-# wine32-tools
-image_tag_wine32_tools=${image_tag_base}_wine32-tools
-echo
-echo 'building wine32-tools (old wow64 build)...'
-dockerfile=${script_root}/docker/Dockerfile.old-wow64-wine32-tools
-declare -a build_args=(
-    --progress "$docker_progress"
-    -f "$dockerfile"
-    --tag "$image_tag_wine32_tools"
-    --platform "$DOCKER_PLATFORM_WINE32"
-    --build-arg wine_version="$wine_version"
-    --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    "${script_root}"
-)
-echo docker build "${build_args[@]}"
-docker build "${build_args[@]}" > "${workdir}/docker-build-wine32-tools.log" 2>&1
-if [ $? -ne 0 ]; then
-  echo "faild to build the image ${image_tag_wine32_tools}."
-  exit 1
-fi
-
-echo
-echo 'successfully built wine32-tools (old wow64 build).'
-
-# wine32
-image_tag_wine32=${image_tag_base}_wine32-builder
 echo
 echo "copying files from wine64 container..."
 container_id=$(docker create "$image_tag_wine64") && \
-  docker cp "${container_id}:/build-wine/wine64" "${workdir}/wine64" && \
+  docker cp "${container_id}:/build-wine/wine64/." "${workdir}/wine64" && \
   docker rm "${container_id}"
 if [ $? -ne 0 ]; then
   echo "faild to copy wine64 files from the image ${image_tag_wine64}."
   exit 1
 fi
 
-echo
-echo "copying files from wine32-tools container..."
-container_id=$(docker create "$image_tag_wine32_tools") && \
-  docker cp "${container_id}:/build-wine/wine32-tools" "${workdir}/wine32-tools" && \
-  docker rm "${container_id}"
-if [ $? -ne 0 ]; then
-  echo "faild to copy wine32-tools files from the image ${image_tag_wine32_tools}."
-  exit 1
-fi
-
+# wine32
+image_tag_wine32=${image_tag_base}_wine32-builder
 echo
 echo 'building wine32 (old wow64 build)...'
 dockerfile=${script_root}/docker/Dockerfile.old-wow64-wine32-builder
@@ -159,10 +100,11 @@ declare -a build_args=(
     -f "$dockerfile"
     --tag "$image_tag_wine32"
     --platform "$DOCKER_PLATFORM_WINE32"
-    --build-arg wine_version="$wine_version"
-    --build-arg prefix="$prefix"
+    --build-arg base_image="$DOCKER_BASE_IMAGE32"
     --build-arg make_max_jobs="$MAKE_MAX_JOBS"
-    "$workdir"
+    --build-arg prefix="$prefix"
+    --build-context workdir="$workdir"
+    "${script_root}"
 )
 echo docker build "${build_args[@]}"
 docker build "${build_args[@]}" > "${workdir}/docker-build-wine32.log" 2>&1
@@ -170,16 +112,26 @@ if [ $? -ne 0 ]; then
   echo "faild to build the image ${image_tag_wine32}."
   exit 1
 fi
-
+echo
 echo 'successfully built wine32 (old wow64 build).'
 
 echo
-echo "copying wine files into ${prefix}..."
+echo "copying wine32 files into ${prefix}..."
 container_id=$(docker create "$image_tag_wine32") && \
-  docker cp "${container_id}:${prefix}/" "$prefix/" && \
+  docker cp "${container_id}:${prefix}/." "$prefix/" && \
   docker rm "${container_id}"
 if [ $? -ne 0 ]; then
-  echo "faild to copy wine32 files from the image ${image_tag_wine32_tools}."
+  echo "faild to copy wine32 files from the image ${image_tag_wine32}."
+  exit 1
+fi
+
+echo
+echo "copying wine64 files into ${prefix}..."
+container_id=$(docker create "$image_tag_wine64") && \
+  docker cp "${container_id}:${prefix}/." "$prefix/" && \
+  docker rm "${container_id}"
+if [ $? -ne 0 ]; then
+  echo "faild to copy wine64 files from the image ${image_tag_wine64}."
   exit 1
 fi
 
