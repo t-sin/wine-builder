@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 # a wine builder script.
 # this script builts specific version of wine in a docker container.
@@ -21,84 +22,146 @@ export MAKE_MAX_JOBS=8
 
 here=$(dirname $(readlink -f "$0"))
 
-usage() {
-
-  echo 'Usage: build-wine VERSION PREFIX'
+show_usage() {
+  echo 'Usage: build-wine [OPTION] TARGET_OPTION PREFIX'
   echo
-  echo 'Build a specific version of wine and install it'
+  echo 'Build a wine specified TARGET_OPTION and install it.'
   echo
-  echo 'The VERSION will be used to determine a tag to clone git repository. Tags are'
-  echo 'tyipically named like `wine-<version>`'
+  echo 'PREFIX is a directory to installed all of build results. If you run this script'
+  echo 'like `build-wine 10.0 /path/to/mywine`, a binary `wine` is placed at'
+  echo '`/path/to/mywine/bin/wine`.'
+  echo 'So the WINELOADER for this should be set like `PREFIX/bin/wine`.'
   echo
-  echo 'PREFIX is a directory to installed all of build results.'
-  echo 'If you run this script like `build-wine 10.0 /path/to/mywine`, a binary `wine` is'
-  echo 'placed at `/path/to/mywine/bin/wine`.'
-  echo 'So the WINELOADER for this should be set like `PREFIX/bin/wine`'
+  echo 'TARGET_OPTION determines the target to build. TARGET OPTIONS are mutually'
+  echo 'exclusive so there is neccesary to choose one.'
   echo
-  echo 'OPTIONS'
-  echo '   -s, --staging                  Build a staging version instead of normal wine source tree.'
-  echo '   -d, --source-directory=PATH    Use sources placed on PATH insted of cloning sources.'
+  echo 'To build a specific version, choose `-v VERSION` target option. This will be a'
+  echo 'tag in official git repository. Tags are tyipically named like `wine-<version>`.'
+  echo 'The source will be cloned from official git repository.'
   echo
-  exit 1
+  echo 'To build with existed source, choose this `-d SRCDIR` option.'
+  echo
+  echo 'TARGET OPTIONS                  These options are mutually exclusive.'
+  echo '   -v, --version=VERSION    ... Build wine with specified version.'
+  echo '   -d, --source=SRCDIR      ... Build wine with sources placed on SRCDIR.'
+  echo
+  echo 'OTHER OPTION'
+  echo '   -s, --staging            ... Build a staging version instead of winehq/wine'
+  echo '                                repository. This option affects only builds'
+  echo '                                git-cloned source, like -v option.'
+  echo '   -h, --help               ... Show this message.'
+  echo
 }
 
-build_staging=no
-new_wow64_build=no
+show_error() {
+  echo "error: ${1-}"
+  echo  
+  show_usage
+  exit 1;
+}
+
+wine_version=
 source_dir=
+build_staging=no
+old_wow64_build=no
 
-if [ $# -lt 2 ]; then
-  usage
-fi
-
-opts=$(getopt -o sd: -l staging -n build-wine -- "$@")
-echo opts = "$opts"
+opts=$(
+  getopt -o v:d:soh \
+    -l version: -l source: -l staging -l old-wow64 -l help \
+    -n build-wine \
+    -- "$@"
+)
+#echo opts = "$opts"
 eval set -- "$opts"
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    -v|--version)
+      shift;
+      wine_version=$1
+      shift;
+      ;;
+    -d|--source)
+      shift;
+      source_dir=$1
+      shift;
+      ;;
     -s|--staging)
       build_staging=yes
       shift
       ;;
-    -d|--source-directory)
-      shift;
-      source_dir=$1
-      shift;
+    -h|--help)
+      show_usage; exit 1;
+      shift
       ;;
     --)
       shift
       break
       ;;
     *)
-      echo 'broken argv...?'
-      echo "argv = $@"
-      usage
+      show_error "error: broken argv...?\n  opts = $opts\n  argv = $@"
   esac
 done
 
-wine_version=${1:-}
-prefix=$(realpath "${2:-}")
+prefix=$(realpath "${1:-}")
 
 tmpdir=
 
+wine_readme_grep_pat='Wine is a program which allows running Microsoft Windows programs'
+source_dir_has_wine_readme() {
+  local readme=
+
+  if [ -r "${source_dir}/README" ]; then
+    readme="${source_dir}/README";
+  fi
+  if [ -r "${source_dir}/README.md" ]; then
+    readme="${source_dir}/README.md";
+  fi
+
+  fgrep -o "$wine_readme_grep_pat" "${readme}" >/dev/null 2>&1
+  local ret=$?
+
+  if [ $ret -ne 0 ]; then
+    echo "readme = $readme"
+  fi
+  return $ret
+}
+
+
+wine_version_pat='[0-9]*\.[0-9]*(\.[0-9]*)?'
+wine_version_pat_exact="^${wine_version_pat}\$"
+
 prerequisties() {
-  if [ -z "${wine_version}" ]; then
-    echo 'ERROR: WINE_VERSION cannot be empty.'
-    echo
-    usage
+  if [ -n "$source_dir" -a -n "$wine_version" ] || [ -z "${source_dir}${wine_version}" ]; then
+    show_error 'Specify build target one of -v (--version) or -d (--source)'
+  fi
+
+  if [ -n "${wine_version}" ]; then
+    if [[ ! "$wine_version" =~ $wine_version_pat_exact ]]; then
+      show_error 'WINE_VERSION must be formatted as "xx.yy[.zz]".'
+    fi
+  fi
+
+  if [ -n "$source_dir" ]; then
+    if [ ! -d "$source_dir" ]; then
+      show_error "source dir is not a directory: $source_dir"
+    fi
+
+    if ! source_dir_has_wine_readme; then
+      echo 'error: source dir is not a wine source, maybe...?'
+      echo "    source_dir = $source_dir"
+      echo "This script checks the README's first line; checks it the line is:"
+      echo "    $wine_readme_grep_pat"
+      echo
+      exit 1
+    fi
   fi
 
   if [ -z "${prefix}" ]; then
-    echo 'ERROR: PREFIX cannot be empty.'
-    echo
-    usage
+    show_error 'PREFIX cannot be empty.'
   fi
-
   if [ -e "${prefix}" ]; then
-    echo "ERROR: wine ${wine_version} is already installed at:"
-    echo "   ${prefix}"
-    echo
-    usage
+    show_error "wine_${wine_version} is already installed at: ${prefix}"
   fi
 }
 
@@ -116,7 +179,7 @@ print_params() {
   echo 'build parameters:'
   echo "      wine_version = $wine_version"
   echo "     build_staging = $build_staging"
-  echo "   new_wow64_build = $new_wow64_build"
+  echo "   old_wow64_build = $old_wow64_build"
   echo
   echo "    install prefix = $prefix"
   echo "    work directory = $tmpdir"
@@ -142,36 +205,35 @@ run_command() {
 }
 
 main() {
-  if [ "$(echo ""$wine_version"" | cut -d'.' -f1)" -ge 11 ]; then
-    new_wow64_build=yes
+  # auto detection wine version for source specified builds
+  if [ -n "$source_dir" ] && [ -r "${source_dir}/VERSION" ]; then
+    wine_version=$(cat "${source_dir}/VERSION" | egrep -o "$wine_version_pat")
+  fi
+  # auto detectiton old or new wow64 build, when wine versoin specified.
+  if [ -n "$wine_version" ] && [ "$(echo ""$wine_version"" | cut -d'.' -f1)" -lt 11 ]; then
+    old_wow64_build=yes
   fi
 
   echo 'building wine...'
   run_command print_params
 
-  if [ -z "$source_dir" ]; then
+  echo 'preparing source...'
+  if [ -n "$source_dir" ]; then
+    run_command echo "copying existing source in ${source_dir}..."
+    cp -r "${source_dir}/" "$tmpdir/wine.src"
+  else
     if [ "$build_staging" = yes ]; then
       run_command "${here}/scripts/setup-wine-staging-source.bash"  "$tmpdir" "$wine_version"
     else
       run_command "${here}/scripts/setup-wine-source.bash"          "$tmpdir" "$wine_version"
     fi
-  else
-    if [ ! -d "$source_dir" ]; then
-      run_command echo "source dir is not a directory: $source_dir"
-      usage
-    elif [ ! -d "${source_dir}/wine.src" ]; then
-      run_command echo "source dir has no wine.src directory: $source_dir"
-      usage
-    fi
-
-    run_command echo "copying existing source in ${source_dir}..."
-    cp -r "${source_dir}/wine.src" "$tmpdir/"
   fi
 
-  if [ "$new_wow64_build" = yes ]; then
-    run_command "${here}/scripts/build-wine_new-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
-  else
+  echo 'start building...'
+  if [ "$old_wow64_build" = yes ]; then
     run_command "${here}/scripts/build-wine_old-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
+  else
+    run_command "${here}/scripts/build-wine_new-wow64-build.bash" "$tmpdir" "$wine_version" "$prefix"
   fi
 }
 
